@@ -62,6 +62,6 @@ No external database server or secrets are needed. The sample accounts below are
 - `src/main/resources/schema.sql`, `seed.sql`: SQLite tables, slot version column, partial unique
   booking index, and sample data.
 - `src/test`: unit, integration, and concurrency tests.
-- `docs/`: Milestone 1 documents.
+- `docs/`: `Milestone2_Report.pdf` (this milestone) and the Milestone 1 documents.
 
 Java and Spring Boot handle requests; JDBC runs hand-written SQL against SQLite. No ORM is used.
