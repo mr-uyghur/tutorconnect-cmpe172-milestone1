@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('My bookings')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container">
+ <h1 class="h3">Appointments booked with me</h1>
+ <p class="text-muted" th:if="${appts.isEmpty()}">No bookings yet.</p>
+ <table class="table" th:unless="${appts.isEmpty()}">
+  <thead><tr><th>Student</th><th>Subject</th><th>When</th><th>Status</th></tr></thead>
+  <tbody><tr th:each="a : ${appts}">
+   <td th:text="${a.customerName}"></td><td th:text="${a.serviceName}"></td>
+   <td th:text="${#temporals.format(a.startsAt,'EEE, MMM d, h:mm a')}"></td>
+   <td><span class="badge" th:classappend="${a.status == 'COMPLETED'} ? 'text-bg-success' : 'text-bg-primary'" th:text="${a.status}"></span></td></tr></tbody>
+ </table>
+</main>
+</body>
+</html>

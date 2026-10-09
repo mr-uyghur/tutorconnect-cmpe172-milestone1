@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Book appointment')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container" style="max-width:640px">
+ <h1 class="h3 mb-3">Review your appointment</h1>
+ <dl class="row">
+  <dt class="col-sm-3">Student</dt><dd class="col-sm-9" th:text="${studentName}"></dd>
+  <dt class="col-sm-3">Tutor</dt><dd class="col-sm-9" th:text="${slot.providerName}"></dd>
+  <dt class="col-sm-3">Subject</dt><dd class="col-sm-9" th:text="${slot.serviceName}"></dd>
+  <dt class="col-sm-3">Time</dt><dd class="col-sm-9" th:text="${#temporals.format(slot.startsAt,'EEEE, MMM d, h:mm a')} + ' - ' + ${#temporals.format(slot.endsAt,'h:mm a')}"></dd>
+ </dl>
+ <form th:action="@{/slots/{id}/book(id=${slot.id})}" method="post" onsubmit="this.querySelector('button').disabled=true">
+  <button class="btn btn-success" type="submit">Confirm booking</button>
+  <a class="btn btn-outline-secondary" th:href="@{/slots}">Back to slots</a>
+ </form>
+</main>
+</body>
+</html>

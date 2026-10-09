@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Confirmation')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container" style="max-width:640px">
+ <div class="alert alert-success"><h1 class="h4 mb-0">Appointment booked</h1></div>
+ <dl class="row">
+  <dt class="col-sm-4">Reference</dt><dd class="col-sm-8" th:text="'TC-' + ${#numbers.formatInteger(appointment.id,3)}"></dd>
+  <dt class="col-sm-4">Student</dt><dd class="col-sm-8" th:text="${appointment.customerName}"></dd>
+  <dt class="col-sm-4">Tutor</dt><dd class="col-sm-8" th:text="${appointment.providerName} + ' | ' + ${appointment.serviceName}"></dd>
+  <dt class="col-sm-4">When</dt><dd class="col-sm-8" th:text="${#temporals.format(appointment.startsAt,'EEEE, MMM d, h:mm a')} + ' - ' + ${#temporals.format(appointment.endsAt,'h:mm a')}"></dd>
+ </dl>
+ <a class="btn btn-primary" th:href="@{/appointments}">My appointments</a>
+ <a class="btn btn-outline-secondary" th:href="@{/slots}">Browse more slots</a>
+</main>
+</body>
+</html>

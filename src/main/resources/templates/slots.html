@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Available slots')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container">
+ <h1 class="h3">Find a session</h1>
+ <form class="row g-2 mb-4" method="get" th:action="@{/slots}">
+  <div class="col-md-3"><label class="form-label" for="providerId">Tutor</label>
+   <select class="form-select" id="providerId" name="providerId"><option value="">All</option>
+    <option th:each="p : ${home.providers}" th:value="${p.id}" th:text="${p.name}" th:selected="${p.id == providerId}"></option></select></div>
+  <div class="col-md-3"><label class="form-label" for="serviceId">Subject</label>
+   <select class="form-select" id="serviceId" name="serviceId"><option value="">All</option>
+    <option th:each="s : ${home.services}" th:value="${s.id}" th:text="${s.name}" th:selected="${s.id == serviceId}"></option></select></div>
+  <div class="col-md-3"><label class="form-label" for="date">Date</label><input class="form-control" type="date" id="date" name="date" th:value="${date}"></div>
+  <div class="col-md-3 d-flex align-items-end gap-2"><button class="btn btn-primary" type="submit">Apply filters</button><a class="btn btn-outline-secondary" th:href="@{/slots}">Clear</a></div>
+ </form>
+ <p th:if="${result.items.isEmpty()}" class="alert alert-info">No sessions match; change filters.</p>
+ <table class="table align-middle" th:unless="${result.items.isEmpty()}">
+  <thead><tr><th>Tutor</th><th>Subject</th><th>Date / time</th><th></th></tr></thead>
+  <tbody><tr th:each="s : ${result.items}">
+   <td th:text="${s.providerName}"></td><td th:text="${s.serviceName}"></td>
+   <td th:text="${#temporals.format(s.startsAt,'EEE, MMM d')} + ', ' + ${#temporals.format(s.startsAt,'h:mm a')} + ' - ' + ${#temporals.format(s.endsAt,'h:mm a')}"></td>
+   <td class="text-end">
+    <a class="btn btn-sm btn-success" th:href="@{/slots/{id}/book(id=${s.id})}" sec:authorize="!hasRole('PROVIDER')">Book</a>
+   </td></tr></tbody>
+ </table>
+ <nav class="d-flex justify-content-between align-items-center" th:if="${result.total > 0}">
+  <a class="btn btn-outline-secondary btn-sm" th:classappend="${!result.hasPrevious()} ? 'disabled'"
+     th:href="@{/slots(providerId=${providerId},serviceId=${serviceId},date=${date},page=${result.page - 1},size=${result.size})}">Previous</a>
+  <span>Page <span th:text="${result.page + 1}"></span> of <span th:text="${result.totalPages()}"></span></span>
+  <a class="btn btn-outline-secondary btn-sm" th:classappend="${!result.hasNext()} ? 'disabled'"
+     th:href="@{/slots(providerId=${providerId},serviceId=${serviceId},date=${date},page=${result.page + 1},size=${result.size})}">Next</a>
+ </nav>
+</main>
+</body>
+</html>

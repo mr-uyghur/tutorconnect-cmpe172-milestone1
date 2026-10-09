@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('My slots')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container">
+ <div class="alert alert-success" th:if="${notice}" th:text="${notice}"></div>
+ <h1 class="h3">Add a slot</h1>
+ <form class="row g-2 mb-4" th:action="@{/provider/slots}" method="post">
+  <div class="col-md-4"><label class="form-label" for="serviceId">Subject</label>
+   <select class="form-select" id="serviceId" name="serviceId" required><option th:each="s : ${services}" th:value="${s.id}" th:text="${s.name}"></option></select></div>
+  <div class="col-md-3"><label class="form-label" for="date">Date</label><input class="form-control" type="date" id="date" name="date" required></div>
+  <div class="col-md-2"><label class="form-label" for="hour">Start hour (0-23)</label><input class="form-control" type="number" id="hour" name="hour" min="0" max="23" required></div>
+  <div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary" type="submit">Add one-hour slot</button></div>
+ </form>
+ <h2 class="h4">My slots</h2>
+ <p class="text-muted" th:if="${slots.isEmpty()}">No slots yet.</p>
+ <table class="table align-middle" th:unless="${slots.isEmpty()}">
+  <thead><tr><th>Subject</th><th>When</th><th>Status</th><th></th></tr></thead>
+  <tbody><tr th:each="s : ${slots}">
+   <td th:text="${s.serviceName}"></td>
+   <td th:text="${#temporals.format(s.startsAt,'EEE, MMM d, h:mm a')} + ' - ' + ${#temporals.format(s.endsAt,'h:mm a')}"></td>
+   <td th:text="${s.booked} ? 'Booked' : 'Open'"></td>
+   <td class="text-end"><form th:unless="${s.hasHistory}" th:action="@{/provider/slots/{id}/delete(id=${s.id})}" method="post" class="mb-0"><button class="btn btn-sm btn-outline-danger" type="submit">Remove</button></form></td></tr></tbody>
+ </table>
+</main>
+</body>
+</html>

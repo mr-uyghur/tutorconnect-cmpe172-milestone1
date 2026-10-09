@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Error')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container" style="max-width:640px">
+ <div class="alert alert-warning">
+  <h1 class="h4"><span th:text="${status}">500</span> <span th:text="${reason ?: error}">Error</span></h1>
+  <p class="mb-0" th:text="${message}">Something went wrong.</p>
+ </div>
+ <a class="btn btn-primary" th:href="@{/slots}">Back to slots</a>
+</main>
+</body>
+</html>

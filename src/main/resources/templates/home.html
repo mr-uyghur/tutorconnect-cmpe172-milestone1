@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Home')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container">
+ <div class="p-4 mb-4 bg-light rounded">
+  <h1>Find your next tutoring session</h1>
+  <p class="lead">Get one-hour help with Java or SQL.</p>
+  <a class="btn btn-primary" th:href="@{/slots}">Browse available slots</a>
+ </div>
+ <div class="row">
+  <div class="col-md-6"><h2 class="h4">Subjects</h2>
+   <ul class="list-group"><li class="list-group-item" th:each="s : ${home.services}"><strong th:text="${s.name}"></strong> <span class="text-muted" th:text="${s.description}"></span></li></ul></div>
+  <div class="col-md-6"><h2 class="h4">Meet the tutors</h2>
+   <ul class="list-group"><li class="list-group-item" th:each="p : ${home.providers}"><strong th:text="${p.name}"></strong> <span class="text-muted" th:text="${p.bio}"></span></li></ul></div>
+ </div>
+</main>
+</body>
+</html>
