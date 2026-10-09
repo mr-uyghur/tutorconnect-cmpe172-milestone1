@@ -1,7 +1,7 @@
 package edu.sjsu.tutorconnect.repository;
 import edu.sjsu.tutorconnect.dto.*;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class SlotRepository {
+ private static final DateTimeFormatter SQL_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
  private final JdbcTemplate jdbc;
  public SlotRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
@@ -21,7 +22,7 @@ public class SlotRepository {
   JOIN providers p ON p.provider_id=s.provider_id
   JOIN users u ON u.user_id=p.user_id
   JOIN services v ON v.service_id=s.service_id
-  WHERE s.starts_at > CURRENT_TIMESTAMP
+  WHERE s.starts_at > datetime('now','localtime')
   AND NOT EXISTS (SELECT 1 FROM appointments a WHERE a.slot_id=s.slot_id AND a.status='BOOKED')
   """;
 
@@ -35,7 +36,7 @@ public class SlotRepository {
   var args = new ArrayList<Object>();
   if (f.providerId() != null) { where.append(" AND s.provider_id=?"); args.add(f.providerId()); }
   if (f.serviceId() != null) { where.append(" AND s.service_id=?"); args.add(f.serviceId()); }
-  if (f.date() != null) { where.append(" AND CAST(s.starts_at AS DATE)=?"); args.add(java.sql.Date.valueOf(f.date())); }
+  if (f.date() != null) { where.append(" AND date(s.starts_at)=?"); args.add(f.date().toString()); }
   long total = jdbc.queryForObject("SELECT COUNT(*) " + OPEN_SLOTS + where, Long.class, args.toArray());
   var pageArgs = new ArrayList<>(args);
   pageArgs.add(size);
@@ -65,7 +66,7 @@ public class SlotRepository {
   jdbc.update(con -> {
    var ps = con.prepareStatement("INSERT INTO availability_slots(provider_id,service_id,starts_at,ends_at) VALUES (?,?,?,?)", new String[]{"slot_id"});
    ps.setLong(1, providerId); ps.setLong(2, serviceId);
-   ps.setTimestamp(3, Timestamp.valueOf(startsAt)); ps.setTimestamp(4, Timestamp.valueOf(startsAt.plusHours(1)));
+   ps.setString(3, startsAt.format(SQL_TIME)); ps.setString(4, startsAt.plusHours(1).format(SQL_TIME));
    return ps;
   }, keys);
   return keys.getKey().longValue();

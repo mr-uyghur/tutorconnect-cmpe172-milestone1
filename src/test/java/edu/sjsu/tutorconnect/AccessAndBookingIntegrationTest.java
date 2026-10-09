@@ -91,6 +91,11 @@ class AccessAndBookingIntegrationTest {
   mvc.perform(get("/api/slots").param("size", "1").param("page", "1")).andExpect(jsonPath("$[0].id").value(3));
   mvc.perform(get("/api/slots").param("size", "1").param("page", "9")).andExpect(jsonPath("$.length()").value(0));
  }
+ @Test void dateFilterUsesTheFullLocalDate() throws Exception {
+  String tomorrow = java.time.LocalDate.now().plusDays(1).toString();
+  mvc.perform(get("/api/slots").param("date", tomorrow))
+   .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+ }
  @Test void invalidInputGivesBadRequestWithoutStackTrace() throws Exception {
   mvc.perform(get("/api/slots").param("page", "-1")).andExpect(status().isBadRequest());
   mvc.perform(get("/api/slots").param("size", "5000")).andExpect(status().isBadRequest());

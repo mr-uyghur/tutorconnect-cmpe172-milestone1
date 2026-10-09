@@ -2,6 +2,9 @@ target/
 .DS_Store
 .idea/
 *.iml
+*.db
+*.db-shm
+*.db-wal
 
 # Local Maven wrapper added for IDE use; not part of this submission.
 .mvn/

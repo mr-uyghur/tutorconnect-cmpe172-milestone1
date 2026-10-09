@@ -3,7 +3,7 @@
 TutorConnect is a tutoring appointment system. Students sign in, find an open one-hour
 session, and book it. Tutors publish and remove slots and see who booked them.
 
-Code walkthrough video: <ADD LINK>
+Code walkthrough video: <ADD SHARED VIDEO LINK BEFORE SUBMISSION>
 
 ## What Milestone 2 implements
 
@@ -15,24 +15,27 @@ Code walkthrough video: <ADD LINK>
 - **Features**: browse/filter by tutor, subject and date with SQL `LIMIT/OFFSET`; book; cancel own
   appointment (owner-only); view upcoming and history; tutors create/remove slots and view bookings.
   Statuses are `BOOKED`, `CANCELLED`, and `COMPLETED` (derived for past BOOKED rows).
-- **Concurrency**: the booking runs in a `READ_COMMITTED` transaction using an optimistic version
-  check on the slot row (compare-and-set), retried up to 3 times on lost races. The
-  `UNIQUE(active_slot_id)` constraint remains as the database-level backstop.
+- **Concurrency**: the booking runs in a SQLite `SERIALIZABLE` transaction using an optimistic version
+  check on the slot row (compare-and-set), retried up to 3 times on lost races or temporary database
+  locks. A partial unique index on booked appointments is the database-level backstop.
 - **Errors**: one `@ControllerAdvice` maps failures to 400/403/404/409 (and 500) with no stack traces.
 - **Tests**: service unit tests (Mockito), integration tests (MockMvc + security), and a
   multi-thread test proving exactly one concurrent booking of a slot succeeds.
 
 ## Run
 
-Requires JDK 17 or newer and Maven.
+Requires JDK 21 and Maven. From the project root:
 
 ```sh
 mvn clean verify
-java -Duser.timezone=America/Los_Angeles -jar target/tutorconnect-1.0.0.jar
+java -jar target/tutorconnect-1.0.0.jar
 ```
 
-Open http://localhost:8080/. The in-memory H2 database is recreated with sample data on every start.
-If port 8080 is busy, add `--server.port=8081`. No environment variables or secrets are needed.
+Open http://localhost:8080/. SQLite creates `tutorconnect.db` in the working directory on first run;
+bookings remain there after a restart. To reset the demo data, stop the app and delete that database
+file before starting it again. If port 8080 is busy, add `--server.port=8081`. An alternate SQLite
+database can be selected with `TUTORCONNECT_DB_URL=jdbc:sqlite:/absolute/path/to/file.db`.
+No external database server or secrets are needed. The sample accounts below are for local demonstration.
 
 ### Demo accounts (password for all: `tutor123`)
 
@@ -56,8 +59,9 @@ If port 8080 is busy, add `--server.port=8081`. No environment variables or secr
 
 - `controller`: request handling. `service`: rules and transactions. `repository`: JDBC SQL.
 - `config`: security and clock. `security`: JDBC user lookup. `exception`: error types and global handler.
-- `src/main/resources/schema.sql`, `seed.sql`: tables (now with a slot `version` column) and sample data.
+- `src/main/resources/schema.sql`, `seed.sql`: SQLite tables, slot version column, partial unique
+  booking index, and sample data.
 - `src/test`: unit, integration, and concurrency tests.
 - `docs/`: Milestone 1 documents.
 
-Java and Spring Boot handle requests; JDBC runs the SQL. H2 is the included database. No ORM is used.
+Java and Spring Boot handle requests; JDBC runs hand-written SQL against SQLite. No ORM is used.

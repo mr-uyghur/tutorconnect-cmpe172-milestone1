@@ -22,7 +22,7 @@ class SkeletonIntegrationTest {
  @Test void slotsExcludeBookedAndPast() throws Exception {
   mvc.perform(get("/api/slots")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3))
    .andExpect(jsonPath("$[0].id").value(1));
-  jdbc.update("UPDATE availability_slots SET starts_at=DATEADD('DAY',-1,CURRENT_DATE),ends_at=DATEADD('HOUR',1,DATEADD('DAY',-1,CURRENT_DATE)) WHERE slot_id=1");
+  jdbc.update("UPDATE availability_slots SET starts_at=datetime(date('now','localtime'),'-1 day'),ends_at=datetime(date('now','localtime'),'-1 day','+1 hour') WHERE slot_id=1");
   mvc.perform(get("/api/slots")).andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].id").value(3));
  }
  @Test void duplicateBookingIsRejected() {
@@ -39,8 +39,8 @@ class SkeletonIntegrationTest {
   assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("INSERT INTO availability_slots(provider_id,service_id,starts_at,ends_at) SELECT provider_id,2,starts_at,ends_at FROM availability_slots WHERE slot_id=1"));
  }
  @Test void nonHourlyAndLongSlotsAreRejected() {
-  assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("UPDATE availability_slots SET starts_at=DATEADD('MINUTE',30,starts_at),ends_at=DATEADD('MINUTE',30,ends_at) WHERE slot_id=1"));
-  assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("UPDATE availability_slots SET ends_at=DATEADD('HOUR',1,ends_at) WHERE slot_id=1"));
+  assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("UPDATE availability_slots SET starts_at=datetime(starts_at,'+30 minutes'),ends_at=datetime(ends_at,'+30 minutes') WHERE slot_id=1"));
+  assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("UPDATE availability_slots SET ends_at=datetime(ends_at,'+1 hour') WHERE slot_id=1"));
  }
  @Test void missingCustomerIsRejected() {
   assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("INSERT INTO appointments(customer_id,slot_id,status) VALUES (999,1,'BOOKED')"));

@@ -16,7 +16,7 @@ public class AppointmentRepository {
  private static final String SELECT = """
   SELECT a.appointment_id,a.slot_id,a.customer_id,c.full_name AS customer_name,pu.full_name AS provider_name,v.name AS service_name,
    s.starts_at,s.ends_at,
-   CASE WHEN a.status='BOOKED' AND s.ends_at <= CURRENT_TIMESTAMP THEN 'COMPLETED' ELSE a.status END AS status
+   CASE WHEN a.status='BOOKED' AND s.ends_at <= datetime('now','localtime') THEN 'COMPLETED' ELSE a.status END AS status
   FROM appointments a
   JOIN users c ON c.user_id=a.customer_id
   JOIN availability_slots s ON s.slot_id=a.slot_id
@@ -33,7 +33,7 @@ public class AppointmentRepository {
   return jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM appointments WHERE slot_id=? AND status='BOOKED')", Boolean.class, slotId);
  }
 
- /** Inserts a BOOKED row. The UNIQUE(active_slot_id) constraint is the final guard against double-booking. */
+ /** Inserts a BOOKED row. The partial unique index is the final guard against double-booking. */
  public long insertBooked(long customerId, long slotId) {
   var keys = new GeneratedKeyHolder();
   jdbc.update(con -> {
@@ -61,7 +61,7 @@ public class AppointmentRepository {
   return jdbc.update("""
    UPDATE appointments SET status='CANCELLED'
    WHERE appointment_id=? AND customer_id=? AND status='BOOKED'
-   AND EXISTS (SELECT 1 FROM availability_slots s WHERE s.slot_id=appointments.slot_id AND s.starts_at > CURRENT_TIMESTAMP)
+   AND EXISTS (SELECT 1 FROM availability_slots s WHERE s.slot_id=appointments.slot_id AND s.starts_at > datetime('now','localtime'))
    """, appointmentId, customerId);
  }
 }

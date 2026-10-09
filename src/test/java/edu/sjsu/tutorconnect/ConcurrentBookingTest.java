@@ -16,7 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /** Deliberately NOT @Transactional: the threads must commit real transactions against the shared database. */
-@SpringBootTest @AutoConfigureMockMvc // same context configuration as the other tests, so they share one in-memory database
+@SpringBootTest @AutoConfigureMockMvc // same context configuration as the other tests
 class ConcurrentBookingTest {
  @Autowired BookingService booking;
  @Autowired JdbcTemplate jdbc;
@@ -24,10 +24,10 @@ class ConcurrentBookingTest {
  final List<Long> customers = new ArrayList<>();
 
  @BeforeEach void setUp() {
-  jdbc.update("INSERT INTO availability_slots(provider_id,service_id,starts_at,ends_at) VALUES (1,1,DATEADD('HOUR',9,DATEADD('DAY',30,CURRENT_DATE)),DATEADD('HOUR',10,DATEADD('DAY',30,CURRENT_DATE)))");
+  jdbc.update("INSERT INTO availability_slots(provider_id,service_id,starts_at,ends_at) VALUES (1,1,datetime(date('now','localtime'),'+30 days','+9 hours'),datetime(date('now','localtime'),'+30 days','+10 hours'))");
   slotId = jdbc.queryForObject("SELECT MAX(slot_id) FROM availability_slots", Long.class);
   for (int i = 0; i < 10; i++) {
-   jdbc.update("INSERT INTO users(full_name,email,role) VALUES (?,?,'CUSTOMER')", "Racer " + i, "racer" + i + "@example.test");
+   jdbc.update("INSERT INTO users(full_name,email,password_hash,role) VALUES (?,?,'$2a$10$emm5VMyzxjPHrBbzHiVbW.QtBsDvcUA1bsXh0OkSmMbhz34H0JgtK','CUSTOMER')", "Racer " + i, "racer" + i + "@example.test");
    customers.add(jdbc.queryForObject("SELECT user_id FROM users WHERE email=?", Long.class, "racer" + i + "@example.test"));
   }
  }

@@ -22,11 +22,11 @@ public class BookingTransaction {
  }
 
  /**
-  * READ_COMMITTED is enough: correctness does not rely on repeatable reads, it relies on the single-row
-  * compare-and-set below plus the UNIQUE(active_slot_id) backstop, so we avoid the cost of stricter isolation.
+  * SQLite uses SERIALIZABLE transactions. The version update and partial unique index
+  * protect the slot even when multiple requests read it at the same time.
   * Returns the new appointment id.
   */
- @Transactional(isolation = Isolation.READ_COMMITTED)
+ @Transactional(isolation = Isolation.SERIALIZABLE)
  public long bookOnce(long customerId, long slotId) {
   var slot = slots.findRow(slotId).orElseThrow(() -> new NotFoundException("Slot " + slotId + " does not exist."));
   if (!slot.startsAt().isAfter(LocalDateTime.now(clock))) throw new BadRequestException("That session has already started.");
