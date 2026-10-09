@@ -16,14 +16,14 @@ class SkeletonIntegrationTest {
  @Autowired JdbcTemplate jdbc;
  @Test void homeReadsDatabase() throws Exception {
   jdbc.update("UPDATE services SET name='Changed in database' WHERE service_id=1");
-  mvc.perform(get("/")).andExpect(status().isOk()).andExpect(jsonPath("$.providers.length()").value(2))
+  mvc.perform(get("/api/home")).andExpect(status().isOk()).andExpect(jsonPath("$.providers.length()").value(2))
    .andExpect(jsonPath("$.services[0].name").value("Changed in database"));
  }
  @Test void slotsExcludeBookedAndPast() throws Exception {
-  mvc.perform(get("/slots")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3))
+  mvc.perform(get("/api/slots")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3))
    .andExpect(jsonPath("$[0].id").value(1));
   jdbc.update("UPDATE availability_slots SET starts_at=DATEADD('DAY',-1,CURRENT_DATE),ends_at=DATEADD('HOUR',1,DATEADD('DAY',-1,CURRENT_DATE)) WHERE slot_id=1");
-  mvc.perform(get("/slots")).andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].id").value(3));
+  mvc.perform(get("/api/slots")).andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].id").value(3));
  }
  @Test void duplicateBookingIsRejected() {
   assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("INSERT INTO appointments(customer_id,slot_id,status) VALUES (1,2,'BOOKED')"));
