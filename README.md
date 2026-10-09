@@ -3,7 +3,7 @@
 TutorConnect is a tutoring appointment system. Students sign in, find an open one-hour
 session, and book it. Tutors publish and remove slots and see who booked them.
 
-Code walkthrough video: <ADD SHARED VIDEO LINK BEFORE SUBMISSION>
+Code walkthrough video: https://drive.google.com/file/d/1gKlBK-QHXuc6YweKB-FyWoZ8EiJ4YlaS/view?usp=sharing
 
 ## What Milestone 2 implements
 
