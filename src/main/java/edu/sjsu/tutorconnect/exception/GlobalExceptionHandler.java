@@ -61,9 +61,9 @@ public class GlobalExceptionHandler {
   return respond(r, HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong. Please try again.");
  }
 
- /** JSON for /api paths, an HTML error page otherwise. */
+ /** JSON for /api and /external paths, an HTML error page otherwise. */
  private Object respond(HttpServletRequest r, HttpStatus status, String message) {
-  if (r.getRequestURI().startsWith("/api/"))
+  if (r.getRequestURI().startsWith("/api/") || r.getRequestURI().startsWith("/external/"))
    return ResponseEntity.status(status).body(Map.of("status", status.value(), "error", status.getReasonPhrase(), "message", message));
   var mv = new ModelAndView("error", Map.of("status", status.value(), "reason", status.getReasonPhrase(), "message", message));
   mv.setStatus(status);

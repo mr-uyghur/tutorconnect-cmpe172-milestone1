@@ -65,3 +65,41 @@ No external database server or secrets are needed. The sample accounts below are
 - `docs/`: `Milestone2_Report.pdf` (this milestone) and the Milestone 1 documents.
 
 Java and Spring Boot handle requests; JDBC runs hand-written SQL against SQLite. No ORM is used.
+
+## Milestone 3: Docker, health, metrics, CI
+
+**Run with Docker** (no local JDK needed):
+
+```sh
+docker compose up --build
+```
+
+Open http://localhost:8080/. The SQLite file lives on the named volume `tutorconnect-data` (mounted at
+`/data`), so bookings survive `docker compose restart` and rebuilds; `docker compose down -v` resets the demo
+data. The container binds `0.0.0.0` (`SERVER_ADDRESS`), runs as a non-root user, and the image has a
+`HEALTHCHECK` on `/health` (visible in `docker compose ps`). The compose file passes `NOTIFICATION_API_KEY`
+from your environment, defaulting to the dev-only value `dev-only-notification-key`; override it in any real
+deployment (`NOTIFICATION_API_KEY=... docker compose up`).
+
+**Ops endpoints** (Spring Boot Actuator, mounted at the root):
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /health` | public | liveness plus database connectivity (used by Docker and load balancers) |
+| `GET /metrics`, `GET /metrics/{name}` | provider login required | JVM, HTTP and connection-pool metrics |
+
+```json
+{"status":"UP","components":{"db":{"status":"UP","details":{"database":"SQLite","validationQuery":"isValid()"}},
+ "diskSpace":{"status":"UP"},"ping":{"status":"UP"},"ssl":{"status":"UP"}}}
+```
+
+`/health` runs with `show-details=always` because the milestone requires the database check to be visible.
+The tradeoff: anyone can see component status, the database product name and disk figures; no credentials or
+application data are included. Metrics are restricted to the provider role.
+
+**Notifications**: booking events are sent to a notification service through a gateway with timeouts and
+retries; the mock service is part of this same app.
+
+**CI**: `.github/workflows/ci.yml` runs `mvn -B verify` (unit, integration and concurrency tests) on every
+push and pull request using JDK 21 with the Maven cache, then a second job runs `docker build` to prove the
+image builds. Badge: `![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg)`.

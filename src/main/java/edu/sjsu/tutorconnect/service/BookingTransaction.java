@@ -3,6 +3,9 @@ import edu.sjsu.tutorconnect.exception.*;
 import edu.sjsu.tutorconnect.repository.*;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import edu.sjsu.tutorconnect.notification.AppointmentEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -17,9 +20,13 @@ public class BookingTransaction {
  private final SlotRepository slots;
  private final AppointmentRepository appointments;
  private final Clock clock;
- public BookingTransaction(SlotRepository slots, AppointmentRepository appointments, Clock clock) {
-  this.slots = slots; this.appointments = appointments; this.clock = clock;
+ private final ApplicationEventPublisher events;
+ @Autowired
+ public BookingTransaction(SlotRepository slots, AppointmentRepository appointments, Clock clock, ApplicationEventPublisher events) {
+  this.slots = slots; this.appointments = appointments; this.clock = clock; this.events = events;
  }
+ /** Without notifications (unit tests). */
+ BookingTransaction(SlotRepository slots, AppointmentRepository appointments, Clock clock) { this(slots, appointments, clock, e -> {}); }
 
  /**
   * SQLite uses SERIALIZABLE transactions. The version update and partial unique index
@@ -34,7 +41,10 @@ public class BookingTransaction {
   // Compare-and-set on the version read above: only one concurrent transaction can win this update.
   if (slots.bumpVersion(slotId, slot.version()) == 0) throw new VersionConflictException();
   try {
-   return appointments.insertBooked(customerId, slotId);
+   long id = appointments.insertBooked(customerId, slotId);
+   // Delivered to NotificationListener only after this transaction commits; a rollback discards it.
+   events.publishEvent(new AppointmentEvent(id, AppointmentEvent.Kind.BOOKED));
+   return id;
   } catch (DuplicateKeyException e) {
    throw new SlotConflictException("This slot was just booked. Please choose another slot.");
   }

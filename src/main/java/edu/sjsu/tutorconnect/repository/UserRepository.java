@@ -17,4 +17,7 @@ public class UserRepository {
  public Optional<Long> findProviderId(long userId) {
   return jdbc.query("SELECT provider_id FROM providers WHERE user_id=?", (rs,n) -> rs.getLong(1), userId).stream().findFirst();
  }
+ public Optional<String> findEmailById(long userId) {
+  return jdbc.query("SELECT email FROM users WHERE user_id=?", (rs,n) -> rs.getString(1), userId).stream().findFirst();
+ }
 }

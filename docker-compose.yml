@@ -1,0 +1,19 @@
+# SQLite is an embedded file database, so the app is the only service.
+services:
+ tutorconnect:
+  build: .
+  image: tutorconnect:1.0.0
+  ports:
+   - "8080:8080"
+  environment:
+   # The mock notification service runs inside this same app, so it calls itself.
+   NOTIFICATION_BASE_URL: http://localhost:8080/external/notifications
+   # Dev-only default; override with a real secret in any real deployment.
+   NOTIFICATION_API_KEY: ${NOTIFICATION_API_KEY:-dev-only-notification-key}
+  volumes:
+   - tutorconnect-data:/data   # SQLite file; bookings survive restarts and rebuilds
+  restart: unless-stopped
+  # Health check is defined in the Dockerfile (GET /health); `docker compose ps` shows it.
+
+volumes:
+ tutorconnect-data:
