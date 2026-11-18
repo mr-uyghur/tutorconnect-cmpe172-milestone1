@@ -61,18 +61,22 @@ public class ReminderAgent {
 
  @Scheduled(cron = "${tutorconnect.agent.reminder.cron}")
  public void scheduledRun() {
-  var r = run();
+  var r = run(null);
   log.info("Reminder agent scheduled run: candidates={} sent={} failed={}", r.candidates(), r.sent(), r.failed());
  }
 
- /** One pass. Also called by the manual trigger endpoint. Runs never overlap inside this instance. */
- public RunResult run() {
+ /**
+  * One pass. providerUserId null = every tutor's sessions (the schedule); otherwise only that tutor's sessions (the
+  * manual trigger), so one tutor can never send, or use up the retry attempts of, another tutor's reminders.
+  * Runs never overlap inside this instance.
+  */
+ public RunResult run(Long providerUserId) {
   if (!running.tryLock()) {
    log.info("Reminder agent already running; skipped");
    return new RunResult(0, 0, 0, List.of());
   }
   try {
-   var due = findDue();
+   var due = findDue(providerUserId);
    var details = new ArrayList<Sent>();
    String policy = cancellationPolicy();
    for (var u : due) {
@@ -86,7 +90,7 @@ public class ReminderAgent {
   }
  }
 
- List<Upcoming> findDue() {
+ List<Upcoming> findDue(Long providerUserId) {
   var now = LocalDateTime.now(clock);
   return jdbc.query("""
    SELECT a.appointment_id, c.full_name, c.email, pu.full_name AS tutor, v.name AS subject, s.starts_at
@@ -99,10 +103,11 @@ public class ReminderAgent {
    LEFT JOIN appointment_reminders r ON r.appointment_id=a.appointment_id
    WHERE a.status='BOOKED' AND s.starts_at > ? AND s.starts_at <= ?
    AND (r.appointment_id IS NULL OR (r.status='FAILED' AND r.attempts < ?))
+   AND (? IS NULL OR pu.user_id = ?)
    ORDER BY s.starts_at LIMIT ?""",
    (rs, n) -> new Upcoming(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5),
     rs.getTimestamp(6).toLocalDateTime()),
-   now.format(SQL), now.plus(window).format(SQL), MAX_ATTEMPTS, BATCH);
+   now.format(SQL), now.plus(window).format(SQL), MAX_ATTEMPTS, providerUserId, providerUserId, BATCH);
  }
 
  /** Atomic claim: a new row, or a FAILED row under the attempt limit, becomes SENDING. Returns false if not claimed. */

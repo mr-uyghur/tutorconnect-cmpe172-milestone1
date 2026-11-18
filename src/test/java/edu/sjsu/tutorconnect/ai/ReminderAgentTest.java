@@ -72,7 +72,7 @@ class ReminderAgentTest {
   long id = bookIn(5, "BOOKED");
   llm.responder = p -> "Hi Maya, your SQL and Databases session with Sam Rivera is coming up. Tip: bring your schema.";
 
-  var result = agent.run();
+  var result = agent.run(null);
 
   var sent = sentFor(id);
   assertEquals(1, sent.size());
@@ -91,15 +91,15 @@ class ReminderAgentTest {
 
  @Test void aSecondRunDoesNotRemindAgain() {
   long id = bookIn(5, "BOOKED");
-  agent.run();
-  agent.run();
+  agent.run(null);
+  agent.run(null);
   assertEquals(1, sentFor(id).size());
  }
 
  @Test void skipsCancelledAndFarFutureSessions() {
   long cancelled = bookIn(5, "CANCELLED");
   long later = bookIn(72, "BOOKED");
-  agent.run();
+  agent.run(null);
   assertTrue(sentFor(cancelled).isEmpty());
   assertTrue(sentFor(later).isEmpty());
  }
@@ -107,7 +107,7 @@ class ReminderAgentTest {
  @Test void fallsBackToATemplateWhenTheLlmFails() {
   long id = bookIn(5, "BOOKED");
   llm.responder = p -> { throw new RuntimeException("Gemini unavailable"); };
-  var result = agent.run();
+  var result = agent.run(null);
   var sent = sentFor(id);
   assertEquals(1, sent.size());
   assertTrue(sent.get(0).message().startsWith("Hi Maya, reminder:"), sent.get(0).message());
@@ -117,18 +117,29 @@ class ReminderAgentTest {
  @Test void failedDeliveryIsRetriedByTheNextRunThenMarkedSent() {
   long id = bookIn(5, "BOOKED");
   when(gateway.send(any())).thenReturn(false);
-  agent.run();
+  agent.run(null);
   assertEquals("FAILED", status(id));
   when(gateway.send(any())).thenReturn(true);
-  agent.run();
+  agent.run(null);
   assertEquals("SENT", status(id));
   assertEquals(2, jdbc.queryForObject("SELECT attempts FROM appointment_reminders WHERE appointment_id=?", Integer.class, id));
+ }
+
+ @Test void aTutorsManualRunTouchesOnlyThatTutorsSessions() {
+  long samsSession = bookIn(5, "BOOKED"); // bookIn uses provider 2 = Sam Rivera (user 3)
+  var alexRun = agent.run(2L);              // Alex Chen (user 2)
+  assertTrue(alexRun.details().stream().noneMatch(d -> d.appointmentId() == samsSession));
+  assertTrue(sentFor(samsSession).isEmpty());
+  assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM appointment_reminders WHERE appointment_id=?", Integer.class, samsSession),
+   "Alex's run did not claim or use up attempts on Sam's session");
+  agent.run(3L);
+  assertEquals(1, sentFor(samsSession).size());
  }
 
  @Test void longLlmOutputIsCappedForTheNotificationService() {
   long id = bookIn(5, "BOOKED");
   llm.responder = p -> "x".repeat(900);
-  agent.run();
+  agent.run(null);
   assertTrue(sentFor(id).get(0).message().length() <= 500);
  }
 }
