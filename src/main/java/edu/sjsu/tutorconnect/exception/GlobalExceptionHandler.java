@@ -51,7 +51,8 @@ public class GlobalExceptionHandler {
 
  @ExceptionHandler(AiUnavailableException.class)
  public Object aiUnavailable(AiUnavailableException e, HttpServletRequest r) {
-  log.warn("AI call failed on {}: {}", r.getRequestURI(), e.getCause() == null ? e.getMessage() : e.getCause().toString());
+  // Only the exception type: the model client's message can echo request details, which must not reach the logs.
+  log.warn("AI call failed on {}: {}", r.getRequestURI(), e.getCause() == null ? "n/a" : e.getCause().getClass().getName());
   return respond(r, HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
  }
 
