@@ -155,6 +155,26 @@ class ReminderAgentTest {
   assertEquals(1, sentFor(id).size(), "still exactly one reminder");
  }
 
+ @Test void aClickDuringARunIsSkippedAndTheWaitingScheduledRunStillCompletes() throws Exception {
+  long id = bookIn(5, "BOOKED");
+  var inLlm = new java.util.concurrent.CountDownLatch(1);
+  var release = new java.util.concurrent.CountDownLatch(1);
+  llm.responder = p -> { inLlm.countDown(); try { release.await(); } catch (InterruptedException e) { throw new RuntimeException(e); } return "Hi Maya"; };
+  var first = new Thread(() -> agent.run(3L));
+  first.start();
+  assertTrue(inLlm.await(5, java.util.concurrent.TimeUnit.SECONDS));
+  var scheduled = new Thread(agent::scheduledRun);
+  scheduled.start();
+  Thread.sleep(200); // the scheduled run is now queued on the fair lock
+  var barging = agent.run(3L); // a second click while the scheduled run waits
+  assertEquals(0, barging.candidates(), "the click is skipped while a run holds the lock");
+  llm.responder = p -> "Hi Maya";
+  release.countDown();
+  first.join(5000); scheduled.join(5000);
+  assertFalse(scheduled.isAlive());
+  assertEquals(1, sentFor(id).size());
+ }
+
  @Test void longLlmOutputIsCappedForTheNotificationService() {
   long id = bookIn(5, "BOOKED");
   llm.responder = p -> "x".repeat(900);

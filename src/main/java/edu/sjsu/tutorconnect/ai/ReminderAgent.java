@@ -51,8 +51,10 @@ public class ReminderAgent {
  private final PolicyKnowledgeBase knowledge;
  private final Clock clock;
  private final Duration window;
- /** Fair, so a waiting scheduled run gets the lock next instead of losing to repeated manual triggers. */
+ /** Fair lock: a waiting scheduled run is served before later manual triggers (both paths use the fair queue). */
  private final ReentrantLock running = new ReentrantLock(true);
+ /** Longest the scheduled run waits for a manual run to finish before skipping to the next hour. */
+ static final Duration SCHEDULE_WAIT = Duration.ofMinutes(5);
 
  public ReminderAgent(JdbcTemplate jdbc, ChatClient.Builder builder, NotificationGateway gateway, PolicyKnowledgeBase knowledge,
    Clock clock, @Value("${tutorconnect.agent.reminder.window:24h}") Duration window) {
@@ -62,9 +64,13 @@ public class ReminderAgent {
 
  @Scheduled(cron = "${tutorconnect.agent.reminder.cron}")
  public void scheduledRun() {
-  // The schedule WAITS for a manual run in progress instead of skipping, so a tutor's click can never cancel the
-  // hourly run for everyone. Waiting is safe: each appointment is claimed atomically, so nothing is sent twice.
-  running.lock();
+  // The schedule waits (bounded) for a manual run in progress instead of skipping at once, so a tutor's click cannot
+  // cancel the hourly run for everyone; a stuck run cannot block the scheduler thread forever either.
+  // Waiting is safe: each appointment is claimed atomically, so nothing is sent twice.
+  if (!acquire(SCHEDULE_WAIT)) {
+   log.warn("Reminder agent scheduled run skipped: another run held the lock for over {}", SCHEDULE_WAIT);
+   return;
+  }
   RunResult r;
   try { r = pass(null); } finally { running.unlock(); }
   log.info("Reminder agent scheduled run: candidates={} sent={} failed={}", r.candidates(), r.sent(), r.failed());
@@ -76,11 +82,17 @@ public class ReminderAgent {
   * Runs never overlap inside this instance; a manual trigger that collides with a run in progress returns empty.
   */
  public RunResult run(Long providerUserId) {
-  if (!running.tryLock()) {
+  // tryLock(0, ...) honours the fair queue (plain tryLock() would jump ahead of a waiting scheduled run).
+  if (!acquire(Duration.ZERO)) {
    log.info("Reminder agent already running; skipped");
    return new RunResult(0, 0, 0, List.of());
   }
   try { return pass(providerUserId); } finally { running.unlock(); }
+ }
+
+ private boolean acquire(Duration wait) {
+  try { return running.tryLock(wait.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS); }
+  catch (InterruptedException e) { Thread.currentThread().interrupt(); return false; }
  }
 
  private RunResult pass(Long providerUserId) {
