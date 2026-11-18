@@ -51,7 +51,8 @@ public class ReminderAgent {
  private final PolicyKnowledgeBase knowledge;
  private final Clock clock;
  private final Duration window;
- private final ReentrantLock running = new ReentrantLock();
+ /** Fair, so a waiting scheduled run gets the lock next instead of losing to repeated manual triggers. */
+ private final ReentrantLock running = new ReentrantLock(true);
 
  public ReminderAgent(JdbcTemplate jdbc, ChatClient.Builder builder, NotificationGateway gateway, PolicyKnowledgeBase knowledge,
    Clock clock, @Value("${tutorconnect.agent.reminder.window:24h}") Duration window) {
@@ -61,33 +62,37 @@ public class ReminderAgent {
 
  @Scheduled(cron = "${tutorconnect.agent.reminder.cron}")
  public void scheduledRun() {
-  var r = run(null);
+  // The schedule WAITS for a manual run in progress instead of skipping, so a tutor's click can never cancel the
+  // hourly run for everyone. Waiting is safe: each appointment is claimed atomically, so nothing is sent twice.
+  running.lock();
+  RunResult r;
+  try { r = pass(null); } finally { running.unlock(); }
   log.info("Reminder agent scheduled run: candidates={} sent={} failed={}", r.candidates(), r.sent(), r.failed());
  }
 
  /**
   * One pass. providerUserId null = every tutor's sessions (the schedule); otherwise only that tutor's sessions (the
   * manual trigger), so one tutor can never send, or use up the retry attempts of, another tutor's reminders.
-  * Runs never overlap inside this instance.
+  * Runs never overlap inside this instance; a manual trigger that collides with a run in progress returns empty.
   */
  public RunResult run(Long providerUserId) {
   if (!running.tryLock()) {
    log.info("Reminder agent already running; skipped");
    return new RunResult(0, 0, 0, List.of());
   }
-  try {
-   var due = findDue(providerUserId);
-   var details = new ArrayList<Sent>();
-   String policy = cancellationPolicy();
-   for (var u : due) {
-    if (!claim(u.appointmentId())) continue; // another run has it, or it is done
-    details.add(remind(u, policy));
-   }
-   int sent = (int) details.stream().filter(Sent::delivered).count();
-   return new RunResult(due.size(), sent, details.size() - sent, details);
-  } finally {
-   running.unlock();
+  try { return pass(providerUserId); } finally { running.unlock(); }
+ }
+
+ private RunResult pass(Long providerUserId) {
+  var due = findDue(providerUserId);
+  var details = new ArrayList<Sent>();
+  String policy = cancellationPolicy();
+  for (var u : due) {
+   if (!claim(u.appointmentId())) continue; // another run has it, or it is done
+   details.add(remind(u, policy));
   }
+  int sent = (int) details.stream().filter(Sent::delivered).count();
+  return new RunResult(due.size(), sent, details.size() - sent, details);
  }
 
  List<Upcoming> findDue(Long providerUserId) {
