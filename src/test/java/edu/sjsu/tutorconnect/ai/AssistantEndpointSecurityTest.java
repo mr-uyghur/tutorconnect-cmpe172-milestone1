@@ -64,6 +64,24 @@ class AssistantEndpointSecurityTest {
   mvc.perform(post("/provider/agents/reminders/run").with(csrf())).andExpect(status().isOk()).andExpect(jsonPath("$.candidates").exists());
  }
 
+ @Test @WithUserDetails("alex@example.test") void triggerShowsDetailsOnlyForTheCallersOwnSessions() throws Exception {
+  // Seed: appointment 1 is Maya's booking with Alex (provider 1); 999 belongs to nobody Alex teaches.
+  when(reminders.run()).thenReturn(new ReminderAgent.RunResult(2, 2, 0, java.util.List.of(
+   new ReminderAgent.Sent(1, "maya@example.test", "LLM", true, "Hi Maya"),
+   new ReminderAgent.Sent(999, "someone@example.test", "LLM", true, "Hi someone"))));
+  mvc.perform(post("/provider/agents/reminders/run").with(csrf())).andExpect(status().isOk())
+   .andExpect(jsonPath("$.sent").value(2))
+   .andExpect(jsonPath("$.details.length()").value(1))
+   .andExpect(jsonPath("$.details[0].appointmentId").value(1));
+ }
+
+ @Test @WithUserDetails("sam@example.test") void anotherTutorSeesNoneOfThoseDetails() throws Exception {
+  when(reminders.run()).thenReturn(new ReminderAgent.RunResult(1, 1, 0, java.util.List.of(
+   new ReminderAgent.Sent(1, "maya@example.test", "LLM", true, "Hi Maya"))));
+  mvc.perform(post("/provider/agents/reminders/run").with(csrf())).andExpect(status().isOk())
+   .andExpect(jsonPath("$.sent").value(1)).andExpect(jsonPath("$.details.length()").value(0));
+ }
+
  @Test @WithUserDetails("maya@example.test") void customerCannotTriggerReminders() throws Exception {
   mvc.perform(post("/provider/agents/reminders/run").with(csrf())).andExpect(status().isForbidden());
   verifyNoInteractions(reminders);
