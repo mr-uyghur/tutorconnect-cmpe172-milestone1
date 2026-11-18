@@ -40,3 +40,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_active_booking ON appointments(slot_id) WHE
 CREATE TABLE IF NOT EXISTS demo_seed_state (
  id INTEGER PRIMARY KEY CHECK (id = 1)
 );
+-- Milestone 4: one row per appointment the reminder agent handled, so each customer gets at most one reminder.
+-- SENDING = claimed by a run; SENT = delivered; FAILED = delivery failed (retried by a later run, up to 3 attempts).
+CREATE TABLE IF NOT EXISTS appointment_reminders (
+ appointment_id INTEGER PRIMARY KEY REFERENCES appointments(appointment_id),
+ status TEXT NOT NULL CHECK (status IN ('SENDING','SENT','FAILED')),
+ attempts INTEGER NOT NULL DEFAULT 1,
+ source TEXT CHECK (source IN ('LLM','TEMPLATE')),
+ message TEXT,
+ updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

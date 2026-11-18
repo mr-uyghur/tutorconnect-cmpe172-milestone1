@@ -59,6 +59,10 @@ public class WebController {
   return "confirmation";
  }
 
+ /** Milestone 4: chat page for the booking assistant (calls POST /api/agent/chat and POST /api/ask). */
+ @GetMapping("/assistant")
+ public String assistant() { return "assistant"; }
+
  @GetMapping("/appointments")
  public String mine(@AuthenticationPrincipal AppUserDetails me, Model m) {
   m.addAttribute("appts", booking.myAppointments(me.getId()));

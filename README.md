@@ -35,7 +35,8 @@ Open http://localhost:8080/. SQLite creates `tutorconnect.db` in the working dir
 bookings remain there after a restart. To reset the demo data, stop the app and delete that database
 file before starting it again. If port 8080 is busy, add `--server.port=8081`. An alternate SQLite
 database can be selected with `TUTORCONNECT_DB_URL=jdbc:sqlite:/absolute/path/to/file.db`.
-No external database server or secrets are needed. The sample accounts below are for local demonstration.
+No external database server is needed. Since Milestone 4 the app needs a Gemini API key (`GEMINI_API_KEY`, see
+below); without it the app stops at startup with a clear error. The sample accounts below are for local demonstration.
 
 ### Demo accounts (password for all: `tutor123`)
 
@@ -103,3 +104,36 @@ retries; the mock service is part of this same app.
 **CI**: `.github/workflows/ci.yml` runs `mvn -B verify` (unit, integration and concurrency tests) on every
 push and pull request using JDK 21 with the Maven cache, then a second job runs `docker build` to prove the
 image builds. Badge: `![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg)`.
+
+## Milestone 4: Enterprise AI (Spring AI + Gemini)
+
+**Setup.** Get a free key at https://aistudio.google.com/apikey, then either `export GEMINI_API_KEY=...` or copy
+`.env.example` to `.env` (gitignored) and fill it in. Only the `api-key` property is set; `project-id` / `location`
+are deliberately not set, because they switch Spring AI to Vertex AI mode, which rejects an AI Studio key. Models
+are configurable: `GEMINI_CHAT_MODEL` (default `gemini-2.5-flash`), `GEMINI_EMBEDDING_MODEL` (default
+`gemini-embedding-001`). Spring AI 1.1.8 (`spring-ai-starter-model-google-genai` + `-embedding`) on Spring Boot 3.5.
+
+```sh
+export GEMINI_API_KEY=...            # or put it in .env for docker compose
+java -jar target/tutorconnect-1.0.0.jar
+```
+
+| Piece | Where | What it does |
+|---|---|---|
+| Agent 1, conversational | `ai/BookingAssistant`, `ai/BookingAssistantTools`, `POST /api/agent/chat`, page `/assistant` | `ChatClient` + tool calling + per-user chat memory. Tools: list tutors/subjects, find open slots, list my appointments, propose/confirm booking, propose/confirm cancellation, search policies. |
+| Guarded writes | `BookingAssistantTools` -> `BookingService.book` / `cancel` | The agent books through the same SERIALIZABLE transaction (version check + partial unique index), so double-booking stays blocked. Tools are bound to the signed-in customer id; the model never supplies a user id. |
+| Confirm-before-write | `ai/PendingActions` | `propose*` records a pending action; `confirm*` runs only if it was proposed in an earlier user message. Enforced in code, not only in the prompt. |
+| Agent 2, autonomous | `ai/ReminderAgent` (`@Scheduled`, hourly) | Finds BOOKED sessions in the next 24 h, has Gemini write a personalized reminder (grounded in the cancellation policy), sends it via the M3 `NotificationGateway`. One reminder per appointment (`appointment_reminders` table, atomic claim); failed deliveries retried up to 3 times; template fallback if Gemini fails. |
+| Manual trigger | `POST /provider/agents/reminders/run` (provider; button on "My bookings") | Runs Agent 2 now and returns the run summary as JSON. |
+| RAG | `knowledge/tutorconnect-policies.md`, `ai/PolicyKnowledgeBase`, `ai/PolicyQaService`, `POST /api/ask` | Hand-written policy/FAQ file, one document per section, embedded with Gemini into Spring AI's in-memory `SimpleVectorStore` at startup; answers use only the retrieved sections and return their titles as sources. |
+
+| Route | Access |
+|---|---|
+| `GET /assistant`, `POST /api/agent/chat` `{conversationId?, message}` | customer (CSRF token required) |
+| `POST /api/ask` `{question}` | any signed-in user (CSRF token required) |
+| `POST /provider/agents/reminders/run` | provider |
+
+If Gemini is down or slow, the AI endpoints return `503` with a message; normal booking pages keep working.
+Tests never call Gemini: `src/test/.../ai/FakeAiConfig` supplies a scripted chat model and a bag-of-words embedding
+model. `AgentBookingToolTest` is the required test (agent book tool -> transactional path -> double-booking blocked),
+invoking the tools through Spring AI `ToolCallback`s with JSON arguments as the model would.

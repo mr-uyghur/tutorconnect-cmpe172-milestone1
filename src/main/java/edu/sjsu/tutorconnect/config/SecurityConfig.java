@@ -21,6 +21,10 @@ public class SecurityConfig {
     .requestMatchers("/metrics/**").hasRole("PROVIDER")
     // Mock external notification service: no user session; it checks a shared API key header itself.
     .requestMatchers("/external/notifications/**").permitAll()
+    // Milestone 4: the booking agent acts as the signed-in student, so only CUSTOMER accounts may use it
+    // (a PROVIDER must not book through it). Policy Q&A is open to any signed-in user.
+    .requestMatchers("/assistant", "/api/agent/**").hasRole("CUSTOMER")
+    .requestMatchers(HttpMethod.POST, "/api/ask").authenticated()
     .requestMatchers(HttpMethod.GET, "/", "/slots", "/api/**").permitAll()
     .requestMatchers("/provider/**").hasRole("PROVIDER")
     .requestMatchers("/slots/**", "/appointments/**").hasRole("CUSTOMER")

@@ -5,6 +5,10 @@
 <nav th:replace="~{fragments/layout :: nav}"></nav>
 <main class="container">
  <h1 class="h3">Appointments booked with me</h1>
+ <!-- Milestone 4: manual trigger for the scheduled reminder agent (returns the run summary as JSON) -->
+ <form th:action="@{/provider/agents/reminders/run}" method="post" class="mb-3">
+  <button class="btn btn-sm btn-outline-primary" type="submit">Run reminder agent now</button>
+ </form>
  <p class="text-muted" th:if="${appts.isEmpty()}">No bookings yet.</p>
  <table class="table" th:unless="${appts.isEmpty()}">
   <thead><tr><th>Student</th><th>Subject</th><th>When</th><th>Status</th></tr></thead>

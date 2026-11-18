@@ -13,6 +13,7 @@
   <ul class="navbar-nav me-auto">
    <li class="nav-item"><a class="nav-link" th:href="@{/slots}">Browse slots</a></li>
    <li class="nav-item" sec:authorize="hasRole('CUSTOMER')"><a class="nav-link" th:href="@{/appointments}">My appointments</a></li>
+   <li class="nav-item" sec:authorize="hasRole('CUSTOMER')"><a class="nav-link" th:href="@{/assistant}">Assistant</a></li>
    <li class="nav-item" sec:authorize="hasRole('PROVIDER')"><a class="nav-link" th:href="@{/provider/slots}">My slots</a></li>
    <li class="nav-item" sec:authorize="hasRole('PROVIDER')"><a class="nav-link" th:href="@{/provider/appointments}">My bookings</a></li>
   </ul>

@@ -49,6 +49,12 @@ public class GlobalExceptionHandler {
  @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
  public Object method(HttpServletRequest r) { return respond(r, HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed."); }
 
+ @ExceptionHandler(AiUnavailableException.class)
+ public Object aiUnavailable(AiUnavailableException e, HttpServletRequest r) {
+  log.warn("AI call failed on {}: {}", r.getRequestURI(), e.getCause() == null ? e.getMessage() : e.getCause().toString());
+  return respond(r, HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+ }
+
  @ExceptionHandler(DataIntegrityViolationException.class)
  public Object integrity(DataIntegrityViolationException e, HttpServletRequest r) {
   log.warn("Constraint violation: {}", e.getMostSpecificCause().getMessage());

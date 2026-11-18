@@ -10,3 +10,6 @@ target/
 .mvn/
 mvnw
 mvnw.cmd
+
+# Local secrets (GEMINI_API_KEY)
+.env

@@ -43,14 +43,14 @@ public class HttpNotificationGateway implements NotificationGateway {
  }
 
  @Override
- public void send(NotificationRequest request) {
+ public boolean send(NotificationRequest request) {
   String reason = "unknown";
   for (int attempt = 1; attempt <= maxAttempts; attempt++) {
    try {
     client.post().body(request).retrieve().toBodilessEntity();
     metrics.counter("tutorconnect.notifications", "result", "sent").increment();
     log.info("Notification sent key={} type={} attempt={}", request.idempotencyKey(), request.type(), attempt);
-    return;
+    return true;
    } catch (RestClientResponseException e) {
     reason = "HTTP " + e.getStatusCode().value();
     if (!e.getStatusCode().is5xxServerError()) break; // 4xx: retrying the same request cannot help
@@ -68,6 +68,7 @@ public class HttpNotificationGateway implements NotificationGateway {
   }
   metrics.counter("tutorconnect.notifications", "result", "failed").increment();
   log.error("Notification gave up, falling back (booking is unaffected) key={} type={} reason={}", request.idempotencyKey(), request.type(), reason);
+  return false;
  }
 
  private void pause(Duration d) {
